@@ -1,0 +1,102 @@
+[
+  {
+    "testName": "Registration Case 1",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "www.myapp.com/register"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "username"
+        },
+        "input_value": "testuser"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "password"
+        },
+        "input_value": "password123"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "repeat-password"
+        },
+        "input_value": "password123"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[text()='Register']"
+        }
+      },
+      {
+        "action": "waitForElementVisible",
+        "locator": {
+          "type": "id",
+          "value": "success-message"
+        }
+      }
+    ]
+  },
+  {
+    "testName": "Registration Case 2",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "www.myapp.com/register"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "username"
+        },
+        "input_value": "testuser"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "password"
+        },
+        "input_value": "password123"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "repeat-password"
+        },
+        "input_value": "password1234"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[text()='Register']"
+        }
+      },
+      {
+        "action": "waitForElementVisible",
+        "locator": {
+          "type": "id",
+          "value": "password-error"
+        }
+      }
+    ]
+  }
+]
