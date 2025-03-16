@@ -1,0 +1,54 @@
+[
+  {
+    "testName": "Case 1",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "http://localhost:63342/Shaster/data/snaps/page3.html?_ijt=lk6m1d4omd7op8c5appah3c45h"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "link_text",
+          "value": "Sign Up"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "http://localhost:63342/register"
+        }
+      }
+    ]
+  },
+  {
+    "testName": "Case 2",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "http://localhost:63342/Shaster/data/snaps/page3.html?_ijt=lk6m1d4omd7op8c5appah3c45h"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "link_text",
+          "value": "Log In"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "http://localhost:63342/login"
+        }
+      }
+    ]
+  }
+]

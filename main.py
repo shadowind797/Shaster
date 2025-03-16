@@ -4,6 +4,9 @@ import mimetypes
 import base64
 import json
 
+from automate.automate import run_test
+from automate.snapshot import get_page_snap
+
 client = genai.Client(api_key="AIzaSyBzVy4mva2mc5CkA6oCMcxeULtLNRzDGk4")
 
 
@@ -72,8 +75,8 @@ def process_with_multiple_attachments(md_file_path, html_file_path,
                         "'locator': {'type': 'id','value': 'rightBtn'},"
                         "'input_value': '',}]}]")
         json_prompt += ("\n\nThere are the ONLY possible values of fields: "
-                        "{'action': ['click', 'goto', 'input', 'waitForElementVisible'],"
-                        "'locator': {'type': ['id', 'xpath', 'cssSelector', 'url']}}")
+                        "{'action': ['click', 'goto', 'input', 'waitForElementVisible', 'waitForRedirect'],"
+                        "'locator': {'type': ['id', 'xpath', 'css', 'url', 'class', 'link_text', 'partial_link_text', 'tag']}}")
         parts[0]["text"] = json_prompt
 
         response = client.models.generate_content(
@@ -106,22 +109,24 @@ def save_response_to_json(response, test_case_path):
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump({"response": response}, f, indent=2)
 
-    return output_path
+    return filename
 
 
 run = True
 while run:
-    test_case_md = input("Provide test case file path (or press Enter to skip): ")
-    page_snapshot = input("Provide page snapshot path (or press Enter to skip): ")
+    test_case_md = input("Provide test case file path: ")
+    page_url = input("Provide initial page URL: ")
 
-    if not test_case_md and not page_snapshot:
-        print("Error: At least one file path must be provided.")
+    if not test_case_md and not page_url:
+        print("Error: File path must be provided.")
         continue
 
     valid_files = True
     if test_case_md and not os.path.exists(test_case_md):
         print(f"Error: Markdown file not found at path: {test_case_md}")
         valid_files = False
+
+    page_snapshot = get_page_snap(page_url)
 
     if page_snapshot and not os.path.exists(page_snapshot):
         print(f"Error: HTML file not found at path: {page_snapshot}")
@@ -140,7 +145,12 @@ while run:
     if len(result) > 10:
         result = result[7:-3]
     output_file = save_response_to_json(result, test_case_md)
-    print(f"\nResponse saved to: {output_file}")
+    print(f"\nResponse saved to: {output_file}\n")
+    print("Processing response...\n")
+
+    print("--- Selenium Test Suit ---")
+    run_test(output_file)
+    print("--- Selenium Test Suit End ---\n")
 
     continue_run = input("Continue? (y/n): ").lower()
     run = continue_run == 'y'

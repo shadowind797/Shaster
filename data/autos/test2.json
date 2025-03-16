@@ -6,7 +6,7 @@
         "action": "goto",
         "locator": {
           "type": "url",
-          "value": "www.myapp.com/register"
+          "value": "http://localhost:63342/Shaster/data/snaps/page2.html?_ijt=ckji6p3pnsqoa9v95hj73ed08d"
         }
       },
       {
@@ -36,8 +36,8 @@
       {
         "action": "click",
         "locator": {
-          "type": "xpath",
-          "value": "//button[text()='Register']"
+          "type": "tag",
+          "value": "button"
         }
       },
       {
@@ -56,7 +56,7 @@
         "action": "goto",
         "locator": {
           "type": "url",
-          "value": "www.myapp.com/register"
+          "value": "http://localhost:63342/Shaster/data/snaps/page2.html?_ijt=ckji6p3pnsqoa9v95hj73ed08d"
         }
       },
       {
@@ -86,8 +86,8 @@
       {
         "action": "click",
         "locator": {
-          "type": "xpath",
-          "value": "//button[text()='Register']"
+          "type": "tag",
+          "value": "button"
         }
       },
       {

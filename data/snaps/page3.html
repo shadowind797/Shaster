@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Account Access</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        .btn-primary {
+            background-color: #4285f4;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #3367d6;
+        }
+        .btn-secondary {
+            background-color: #f8f9fa;
+            color: #3c4043;
+            border: 1px solid #dadce0;
+        }
+        .btn-secondary:hover {
+            background-color: #e8eaed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Do you have an account?</h2>
+        <div class="buttons">
+            <a href="/register"><button class="btn btn-primary">Sign Up</button></a>
+            <a href="/login"><button class="btn btn-secondary">Log In</button></a>
+        </div>
+    </div>
+</body>
+</html>
