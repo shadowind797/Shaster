@@ -8,7 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-from automate.error_handler import ElementNotFoundHandler
+from automate.fallback_handler import FallbackHandler
 
 
 def run_tests_from_file(file_path, browser='chrome', headless=False):
@@ -20,7 +20,7 @@ def run_tests_from_file(file_path, browser='chrome', headless=False):
         return {"error": str(e)}
 
     driver = setup_webdriver(browser, headless)
-    error_handler = ElementNotFoundHandler(driver)
+    fallback_handler = FallbackHandler(driver)
     test_results = {}
 
     try:
@@ -33,7 +33,7 @@ def run_tests_from_file(file_path, browser='chrome', headless=False):
                 for i, step in enumerate(steps):
                     # Check if this is a click on a link and there's a next step
                     next_step = steps[i + 1] if i + 1 < len(steps) else None
-                    process_test_step(driver, step, error_handler, next_step)
+                    process_test_step(driver, step, fallback_handler, next_step)
 
                 test_results[test_name] = "PASS"
                 print(f"Test '{test_name}' passed")
@@ -72,8 +72,7 @@ def setup_webdriver(browser='chrome', headless=False):
         raise ValueError(f"Unsupported browser: {browser}")
 
 
-
-def process_test_step(driver, step, error_handler, next_step=None):
+def process_test_step(driver, step, fallback_handler, next_step=None):
     action = step.get("action")
     locator = step.get("locator", {})
     locator_type = locator.get("type")
@@ -97,7 +96,7 @@ def process_test_step(driver, step, error_handler, next_step=None):
             element.clear()
             element.send_keys(input_value)
         except NoSuchElementException:
-            element = error_handler.handle_input_not_found(locator)
+            element = fallback_handler.execute_fallback_script("input", locator_type, locator_value, input_value)
             if not element:
                 raise NoSuchElementException(
                     f"Input element not found with locator: {locator_value} and no fallback succeeded")
@@ -132,24 +131,32 @@ def process_test_step(driver, step, error_handler, next_step=None):
                 try:
                     href_value = locator_value.split("@href=")[1].split("]")[0].strip("'\"")
 
-                    fallback_urls = error_handler.handle_link_not_found(locator, href_value)
+                    result = fallback_handler.execute_fallback_script("click", locator_type, locator_value, href_value)
 
-                    for fallback_url in fallback_urls:
-                        try:
-                            print(f"Trying fallback URL: {fallback_url}")
-                            driver.get(fallback_url)
-                            time.sleep(2)
-                            print(f"Successfully navigated to fallback URL: {fallback_url}")
-                            return
-                        except Exception as e:
-                            print(f"Failed to navigate to fallback URL {fallback_url}: {e}")
-                            continue
+                    # Check if the result is a dictionary with URLs to try
+                    if isinstance(result, dict) and "urls_to_try" in result:
+                        fallback_urls = result["urls_to_try"]
 
-                    print("All fallback URLs failed, trying to find clickable element")
+                        for fallback_url in fallback_urls:
+                            try:
+                                print(f"Trying fallback URL: {fallback_url}")
+                                driver.get(fallback_url)
+                                time.sleep(2)
+                                print(f"Successfully navigated to fallback URL: {fallback_url}")
+                                return
+                            except Exception as e:
+                                print(f"Failed to navigate to fallback URL {fallback_url}: {e}")
+                                continue
+
+                        print("All fallback URLs failed, trying to find clickable element")
+                    elif result:
+                        # If result is an element, click it
+                        result.click()
+                        return
                 except (IndexError, ValueError):
                     print("Could not extract href value from XPath")
 
-            element = error_handler.handle_button_not_found(locator)
+            element = fallback_handler.execute_fallback_script("click", locator_type, locator_value)
             if not element:
                 raise NoSuchElementException(
                     f"Clickable element not found with locator: {locator_value} and no fallback succeeded")
@@ -161,7 +168,7 @@ def process_test_step(driver, step, error_handler, next_step=None):
         try:
             element = find_element(driver, by_type, locator_value)
         except NoSuchElementException:
-            element = error_handler.handle_select_not_found(locator, select_value)
+            element = fallback_handler.execute_fallback_script("select", locator_type, locator_value, select_value)
             if not element:
                 raise NoSuchElementException(
                     f"Select element not found with locator: {locator_value} and no fallback succeeded")
@@ -185,27 +192,9 @@ def process_test_step(driver, step, error_handler, next_step=None):
                 EC.visibility_of_element_located((by_type, locator_value))
             )
         except TimeoutException:
-            if locator_type == "xpath":
-                alternative_locators = []
-
-                if "//button" in locator_value:
-                    alternative_locators.append(locator_value.replace("//button", "//a"))
-                    alternative_locators.append(locator_value.replace("//button", "//*"))
-                elif "//a" in locator_value:
-                    alternative_locators.append(locator_value.replace("//a", "//button"))
-                    alternative_locators.append(locator_value.replace("//a", "//*"))
-
-                for alt_locator in alternative_locators:
-                    try:
-                        WebDriverWait(driver, 3).until(
-                            EC.visibility_of_element_located((by_type, alt_locator))
-                        )
-                        print(f"Found element with alternative locator: {alt_locator}")
-                        return
-                    except TimeoutException:
-                        continue
-
-            raise TimeoutException(f"Element {locator_value} not visible after {timeout} seconds")
+            element = fallback_handler.execute_fallback_script("waitForElementVisible", locator_type, locator_value)
+            if not element:
+                raise TimeoutException(f"Element {locator_value} not visible after {timeout} seconds")
 
     elif action == "waitForRedirect":
         expected_url = locator_value
@@ -223,7 +212,6 @@ def process_test_step(driver, step, error_handler, next_step=None):
 
     else:
         raise ValueError(f"Unsupported action: {action}")
-
 
 
 def get_by_type(locator_type):

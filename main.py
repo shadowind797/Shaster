@@ -92,7 +92,7 @@ def process_with_multiple_attachments(md_file_path, html_file_paths,
         Never identify: <input/> with @placeholder, any element with 'data-encore-id'.
         Always identify: <a/> with @href, <button/> with @data-testid or @text.
         
-        Always write full link in '@href' attribute 
+        Do not stop generating steps even if you not certain in your answer
 
         **Finding the Element (PRIMARY FOCUS):** For EACH test step, your primary task is to find the HTML element that *best corresponds* to the action described in the step.
 

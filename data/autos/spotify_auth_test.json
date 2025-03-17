@@ -1,6 +1,6 @@
 [
   {
-    "testName": "Spotify authentication test",
+    "testName": "Case 1",
     "steps": [
       {
         "action": "goto",
@@ -13,7 +13,7 @@
         "action": "click",
         "locator": {
           "type": "xpath",
-          "value": "//a[@href='/us/signup?forward_url=https%3A%2F%2Fopen.spotify.com%2F']"
+          "value": "//a[@href='/us/signup']"
         }
       },
       {
@@ -29,7 +29,7 @@
           "type": "xpath",
           "value": "//input[@name='username']"
         },
-        "input_value": "sfih5gdu2@outlook.com"
+        "input_value": "mockemail123@outlook.com"
       },
       {
         "action": "click",
@@ -44,7 +44,7 @@
           "type": "xpath",
           "value": "//input[@name='password']"
         },
-        "input_value": "pas%sword142!@#"
+        "input_value": "P@$$wOrd123!@#"
       },
       {
         "action": "click",
@@ -59,7 +59,7 @@
           "type": "xpath",
           "value": "//input[@name='displayName']"
         },
-        "input_value": "NameTest"
+        "input_value": "Mock Name"
       },
       {
         "action": "select",
@@ -75,7 +75,7 @@
           "type": "xpath",
           "value": "//input[@name='day']"
         },
-        "input_value": "1"
+        "input_value": "15"
       },
       {
         "action": "input",
@@ -89,7 +89,7 @@
         "action": "click",
         "locator": {
           "type": "xpath",
-          "value": "//input[@name='gender' and @value='male']"
+          "value": "//label[text()='Male']"
         }
       },
       {
@@ -104,6 +104,62 @@
         "locator": {
           "type": "xpath",
           "value": "//button[@data-testid='submit']"
+        }
+      }
+    ]
+  },
+  {
+    "testName": "Case 2",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "https://open.spotify.com/"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//a[@href='/us/login']"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "https://accounts.spotify.com/en/login?continue=https%3A%2F%2Fopen.spotify.com%2F"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='username']"
+        },
+        "input_value": "mr.lynx2009@gmail.com"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='password']"
+        },
+        "input_value": "AgentSpot007"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[@data-testid='login-button']"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "https://open.spotify.com"
         }
       }
     ]
