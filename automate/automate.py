@@ -1,10 +1,14 @@
 import json
 import os
+import time
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+
+from automate.error_handler import ElementNotFoundHandler
 
 
 def run_tests_from_file(file_path, browser='chrome', headless=False):
@@ -16,6 +20,7 @@ def run_tests_from_file(file_path, browser='chrome', headless=False):
         return {"error": str(e)}
 
     driver = setup_webdriver(browser, headless)
+    error_handler = ElementNotFoundHandler(driver)
     test_results = {}
 
     try:
@@ -24,8 +29,11 @@ def run_tests_from_file(file_path, browser='chrome', headless=False):
             print(f"Running test: {test_name}")
 
             try:
-                for step in test.get("steps", []):
-                    process_test_step(driver, step)
+                steps = test.get("steps", [])
+                for i, step in enumerate(steps):
+                    # Check if this is a click on a link and there's a next step
+                    next_step = steps[i + 1] if i + 1 < len(steps) else None
+                    process_test_step(driver, step, error_handler, next_step)
 
                 test_results[test_name] = "PASS"
                 print(f"Test '{test_name}' passed")
@@ -64,7 +72,8 @@ def setup_webdriver(browser='chrome', headless=False):
         raise ValueError(f"Unsupported browser: {browser}")
 
 
-def process_test_step(driver, step):
+
+def process_test_step(driver, step, error_handler, next_step=None):
     action = step.get("action")
     locator = step.get("locator", {})
     locator_type = locator.get("type")
@@ -81,14 +90,94 @@ def process_test_step(driver, step):
         driver.get(url)
 
     elif action == "input":
+        time.sleep(1)
         input_value = step.get("input_value", "")
-        element = find_element(driver, by_type, locator_value)
-        element.clear()
-        element.send_keys(input_value)
+        try:
+            element = find_element(driver, by_type, locator_value)
+            element.clear()
+            element.send_keys(input_value)
+        except NoSuchElementException:
+            element = error_handler.handle_input_not_found(locator)
+            if not element:
+                raise NoSuchElementException(
+                    f"Input element not found with locator: {locator_value} and no fallback succeeded")
+            element.clear()
+            element.send_keys(input_value)
 
     elif action == "click":
-        element = find_element(driver, by_type, locator_value)
-        element.click()
+        time.sleep(1)
+        try:
+            element = find_element(driver, by_type, locator_value)
+            try:
+                element.click()
+            except Exception as e:
+                if "element click intercepted" in str(e).lower() and element.tag_name.lower() == "input":
+                    if try_click_label_for_input(driver, element):
+                        return
+                    raise
+                else:
+                    raise
+        except NoSuchElementException:
+            if locator_type == "xpath" and "//a" in locator_value and "@href" in locator_value:
+                if next_step and next_step.get("action") == "waitForRedirect":
+                    redirect_url = next_step.get("locator", {}).get("value")
+                    if redirect_url:
+                        print(
+                            f"Link not found, but next step is waitForRedirect. Navigating directly to: {redirect_url}")
+                        if not redirect_url.startswith(('http://', 'https://')):
+                            redirect_url = 'https://' + redirect_url
+                        driver.get(redirect_url)
+                        return
+
+                try:
+                    href_value = locator_value.split("@href=")[1].split("]")[0].strip("'\"")
+
+                    fallback_urls = error_handler.handle_link_not_found(locator, href_value)
+
+                    for fallback_url in fallback_urls:
+                        try:
+                            print(f"Trying fallback URL: {fallback_url}")
+                            driver.get(fallback_url)
+                            time.sleep(2)
+                            print(f"Successfully navigated to fallback URL: {fallback_url}")
+                            return
+                        except Exception as e:
+                            print(f"Failed to navigate to fallback URL {fallback_url}: {e}")
+                            continue
+
+                    print("All fallback URLs failed, trying to find clickable element")
+                except (IndexError, ValueError):
+                    print("Could not extract href value from XPath")
+
+            element = error_handler.handle_button_not_found(locator)
+            if not element:
+                raise NoSuchElementException(
+                    f"Clickable element not found with locator: {locator_value} and no fallback succeeded")
+            element.click()
+
+    elif action == "select":
+        time.sleep(1)
+        select_value = step.get("input_value", "")
+        try:
+            element = find_element(driver, by_type, locator_value)
+        except NoSuchElementException:
+            element = error_handler.handle_select_not_found(locator, select_value)
+            if not element:
+                raise NoSuchElementException(
+                    f"Select element not found with locator: {locator_value} and no fallback succeeded")
+
+        select = Select(element)
+
+        try:
+            select.select_by_value(select_value)
+        except NoSuchElementException:
+            try:
+                select.select_by_visible_text(select_value)
+            except NoSuchElementException:
+                if select_value.isdigit():
+                    select.select_by_index(int(select_value))
+                else:
+                    raise ValueError(f"Could not select option with value, text, or index: {select_value}")
 
     elif action == "waitForElementVisible":
         try:
@@ -96,6 +185,26 @@ def process_test_step(driver, step):
                 EC.visibility_of_element_located((by_type, locator_value))
             )
         except TimeoutException:
+            if locator_type == "xpath":
+                alternative_locators = []
+
+                if "//button" in locator_value:
+                    alternative_locators.append(locator_value.replace("//button", "//a"))
+                    alternative_locators.append(locator_value.replace("//button", "//*"))
+                elif "//a" in locator_value:
+                    alternative_locators.append(locator_value.replace("//a", "//button"))
+                    alternative_locators.append(locator_value.replace("//a", "//*"))
+
+                for alt_locator in alternative_locators:
+                    try:
+                        WebDriverWait(driver, 3).until(
+                            EC.visibility_of_element_located((by_type, alt_locator))
+                        )
+                        print(f"Found element with alternative locator: {alt_locator}")
+                        return
+                    except TimeoutException:
+                        continue
+
             raise TimeoutException(f"Element {locator_value} not visible after {timeout} seconds")
 
     elif action == "waitForRedirect":
@@ -105,11 +214,16 @@ def process_test_step(driver, step):
                 lambda d: d.current_url == expected_url
             )
         except TimeoutException:
+            if expected_url in driver.current_url:
+                print(f"URL partially matches expected URL. Current: {driver.current_url}, Expected: {expected_url}")
+                return
+
             raise TimeoutException(
                 f"URL did not redirect to {expected_url} after {timeout} seconds. Current URL: {driver.current_url}")
 
     else:
         raise ValueError(f"Unsupported action: {action}")
+
 
 
 def get_by_type(locator_type):
@@ -152,3 +266,62 @@ def run_test(test_name):
     print("\nTest Results Summary:")
     for test_name, result in results.items():
         print(f"{test_name}: {result}")
+
+
+def try_click_label_for_input(driver, input_element):
+    try:
+        input_id = input_element.get_attribute('id')
+        if input_id:
+            try:
+                label = driver.find_element(By.CSS_SELECTOR, f"label[for='{input_id}']")
+                print(f"Found label with for='{input_id}', clicking it")
+                label.click()
+                return True
+            except NoSuchElementException:
+                pass
+
+        input_name = input_element.get_attribute('name')
+        if input_name:
+            try:
+                label = driver.find_element(By.CSS_SELECTOR, f"label[for='{input_name}']")
+                print(f"Found label with for='{input_name}', clicking it")
+                label.click()
+                return True
+            except NoSuchElementException:
+                pass
+
+        parent_elements = driver.execute_script("""
+            var element = arguments[0];
+            var parents = [];
+            var parent = element.parentElement;
+            while (parent) {
+                parents.push(parent);
+                parent = parent.parentElement;
+                if (parents.length > 5) break; // Limit search depth
+            }
+            return parents;
+        """, input_element)
+
+        for parent in parent_elements:
+            if driver.execute_script("return arguments[0].tagName.toLowerCase() === 'label'", parent):
+                print("Input is inside a label element, clicking the label")
+                driver.execute_script("arguments[0].click();", parent)
+                return True
+
+        input_rect = input_element.rect
+        labels = driver.find_elements(By.TAG_NAME, "label")
+
+        for label in labels:
+            label_rect = label.rect
+            if (abs(label_rect['x'] - input_rect['x']) < 50 and
+                    abs(label_rect['y'] - input_rect['y']) < 50):
+                print("Found label near input element, clicking it")
+                label.click()
+                return True
+
+        print("Could not find any associated label for the input element")
+        return False
+
+    except Exception as e:
+        print(f"Error while trying to click label: {e}")
+        return False

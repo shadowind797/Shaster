@@ -1,0 +1,111 @@
+[
+  {
+    "testName": "Spotify authentication test",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "https://open.spotify.com/"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//a[@href='/us/signup?forward_url=https%3A%2F%2Fopen.spotify.com%2F']"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "https://www.spotify.com/us/signup?forward_url=https%3A%2F%2Fopen.spotify.com%2F"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='username']"
+        },
+        "input_value": "sfih5gdu2@outlook.com"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[@data-testid='submit']"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='password']"
+        },
+        "input_value": "pas%sword142!@#"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[@data-testid='submit']"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='displayName']"
+        },
+        "input_value": "NameTest"
+      },
+      {
+        "action": "select",
+        "locator": {
+          "type": "xpath",
+          "value": "//select[@name='month']"
+        },
+        "input_value": "January"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='day']"
+        },
+        "input_value": "1"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='year']"
+        },
+        "input_value": "1990"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='gender' and @value='male']"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[@data-testid='submit']"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[@data-testid='submit']"
+        }
+      }
+    ]
+  }
+]

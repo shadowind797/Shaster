@@ -4,6 +4,13 @@ from urllib.parse import urlparse
 import hashlib
 from pathlib import Path
 
+import os
+import requests
+from urllib.parse import urlparse
+import hashlib
+from pathlib import Path
+from bs4 import BeautifulSoup
+
 
 def fetch_and_save_html(url, output_dir="../data/snaps/"):
     try:
@@ -21,16 +28,22 @@ def fetch_and_save_html(url, output_dir="../data/snaps/"):
             filename = f"{domain}_{url_hash}.html"
 
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/91.0.4472.124 Safari/537.36'
         }
         response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
+        soup = BeautifulSoup(response.text, 'html.parser')
+        body_tag = soup.body
+
+        body_content = str(body_tag) if body_tag else response.text
+
         file_path = os.path.join(output_dir, filename)
         with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(response.text)
+            f.write(body_content)
 
-        print(f"Successfully saved HTML from {url} to {file_path}")
+        print(f"Successfully saved HTML body from {url} to {file_path}")
         return file_path
 
     except requests.exceptions.RequestException as e:
