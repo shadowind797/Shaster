@@ -1,0 +1,80 @@
+[
+  {
+    "testName": "SPOT-PL-001 | Verify Creation and Renaming of a New Playlist on Spotify",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "https://accounts.spotify.com/en/login"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "login-username"
+        },
+        "input_value": "shaster78953@gmail.com"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "id",
+          "value": "login-password"
+        },
+        "input_value": "AgentCool007"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "id",
+          "value": "login-button"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//a[@href='https://open.spotify.com/']"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "https://open.spotify.com/"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[text()='Create playlist']"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//h1[text()='My Playlist']"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@aria-label='Playlist name']"
+        },
+        "input_value": "Test Playlist"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[text()='Save']"
+        }
+      }
+    ]
+  }
+]

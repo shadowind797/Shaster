@@ -1,0 +1,91 @@
+[
+  {
+    "testName": "Prepare: Login",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "https://open.spotify.com/"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[text()='Log in']"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "https://accounts.spotify.com/en/login?continue=https%3A%2F%2Fopen.spotify.com%2F"
+        }
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='username']"
+        },
+        "input_value": "shaster797@gmail.com"
+      },
+      {
+        "action": "input",
+        "locator": {
+          "type": "xpath",
+          "value": "//input[@name='password']"
+        },
+        "input_value": "AgentShaster007"
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[@data-testid='login-button']"
+        }
+      },
+      {
+        "action": "waitForRedirect",
+        "locator": {
+          "type": "url",
+          "value": "https://open.spotify.com/"
+        }
+      }
+    ]
+  },
+  {
+    "testName": "Case 1",
+    "steps": [
+      {
+        "action": "goto",
+        "locator": {
+          "type": "url",
+          "value": "https://open.spotify.com/"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//a[@href='/genre/music']"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//div[@aria-rowindex='1']//a"
+        }
+      },
+      {
+        "action": "click",
+        "locator": {
+          "type": "xpath",
+          "value": "//button[@aria-label='Play']"
+        }
+      }
+    ]
+  }
+]

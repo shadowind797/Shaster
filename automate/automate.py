@@ -104,87 +104,57 @@ def process_test_step(driver, step, fallback_handler, next_step=None):
             element.send_keys(input_value)
 
     elif action == "click":
-        time.sleep(1)
+        time.sleep(2)
         try:
             element = find_element(driver, by_type, locator_value)
             try:
                 element.click()
+                return
             except Exception as e:
-                if "element click intercepted" in str(e).lower() and element.tag_name.lower() == "input":
-                    if try_click_label_for_input(driver, element):
+                if "element click intercepted" in str(e).lower():
+                    if resolve_click_intercept(driver, element):
                         return
                     raise
                 else:
                     raise
-        except NoSuchElementException:
-            if locator_type == "xpath" and "//a" in locator_value and "@href" in locator_value:
-                if next_step and next_step.get("action") == "waitForRedirect":
-                    redirect_url = next_step.get("locator", {}).get("value")
-                    if redirect_url:
-                        print(
-                            f"Link not found, but next step is waitForRedirect. Navigating directly to: {redirect_url}")
-                        if not redirect_url.startswith(('http://', 'https://')):
-                            redirect_url = 'https://' + redirect_url
-                        driver.get(redirect_url)
-                        return
 
+
+        except NoSuchElementException:
+            if next_step and next_step.get("action") == "waitForRedirect" and "@href" in step.get("locator").get("value"):
+
+                redirect_url = next_step.get("locator", {}).get("value")
+                if redirect_url:
+                    print(f"Link not found, but next step is waitForRedirect. Navigating directly to: {redirect_url}")
+                    if not redirect_url.startswith(('http://', 'https://')):
+                        redirect_url = 'https://' + redirect_url
+                    driver.get(redirect_url)
+                    return
+            result = fallback_handler.execute_fallback_script("click", locator_type, locator_value)
+            if result:
                 try:
-                    href_value = locator_value.split("@href=")[1].split("]")[0].strip("'\"")
+                    result.click()
+                    return
+                except Exception as e:
+                    if "element click intercepted" in str(e).lower():
+                        if resolve_click_intercept(driver, result):
+                            return
+                        raise
+                    else:
+                        raise
 
-                    result = fallback_handler.execute_fallback_script("click", locator_type, locator_value, href_value)
 
-                    # Check if the result is a dictionary with URLs to try
-                    if isinstance(result, dict) and "urls_to_try" in result:
-                        fallback_urls = result["urls_to_try"]
+            elif next_step and next_step.get("action") == "waitForRedirect":
+                redirect_url = next_step.get("locator", {}).get("value")
+                if redirect_url:
+                    print(f"Link not found, but next step is waitForRedirect. Navigating directly to: {redirect_url}")
 
-                        for fallback_url in fallback_urls:
-                            try:
-                                print(f"Trying fallback URL: {fallback_url}")
-                                driver.get(fallback_url)
-                                time.sleep(2)
-                                print(f"Successfully navigated to fallback URL: {fallback_url}")
-                                return
-                            except Exception as e:
-                                print(f"Failed to navigate to fallback URL {fallback_url}: {e}")
-                                continue
+                    if not redirect_url.startswith(('http://', 'https://')):
+                        redirect_url = 'https://' + redirect_url
+                    driver.get(redirect_url)
+                    return
 
-                        print("All fallback URLs failed, trying to find clickable element")
-                    elif result:
-                        # If result is an element, click it
-                        result.click()
-                        return
-                except (IndexError, ValueError):
-                    print("Could not extract href value from XPath")
-
-            element = fallback_handler.execute_fallback_script("click", locator_type, locator_value)
-            if not element:
-                raise NoSuchElementException(
-                    f"Clickable element not found with locator: {locator_value} and no fallback succeeded")
-            element.click()
-
-    elif action == "select":
-        time.sleep(1)
-        select_value = step.get("input_value", "")
-        try:
-            element = find_element(driver, by_type, locator_value)
-        except NoSuchElementException:
-            element = fallback_handler.execute_fallback_script("select", locator_type, locator_value, select_value)
-            if not element:
-                raise NoSuchElementException(
-                    f"Select element not found with locator: {locator_value} and no fallback succeeded")
-
-        select = Select(element)
-
-        try:
-            select.select_by_value(select_value)
-        except NoSuchElementException:
-            try:
-                select.select_by_visible_text(select_value)
-            except NoSuchElementException:
-                if select_value.isdigit():
-                    select.select_by_index(int(select_value))
-                else:
-                    raise ValueError(f"Could not select option with value, text, or index: {select_value}")
+            raise NoSuchElementException(
+                f"Clickable element not found with locator: {locator_value} and no fallback succeeded")
 
     elif action == "waitForElementVisible":
         try:
@@ -256,27 +226,37 @@ def run_test(test_name):
         print(f"{test_name}: {result}")
 
 
-def try_click_label_for_input(driver, input_element):
+def resolve_click_intercept(driver, element):
     try:
-        input_id = input_element.get_attribute('id')
-        if input_id:
-            try:
-                label = driver.find_element(By.CSS_SELECTOR, f"label[for='{input_id}']")
-                print(f"Found label with for='{input_id}', clicking it")
-                label.click()
-                return True
-            except NoSuchElementException:
-                pass
+        tag_name = element.tag_name.lower()
 
-        input_name = input_element.get_attribute('name')
-        if input_name:
-            try:
-                label = driver.find_element(By.CSS_SELECTOR, f"label[for='{input_name}']")
-                print(f"Found label with for='{input_name}', clicking it")
-                label.click()
-                return True
-            except NoSuchElementException:
-                pass
+        if tag_name == "input":
+            input_id = element.get_attribute('id')
+            if input_id:
+                try:
+                    label = driver.find_element(By.CSS_SELECTOR, f"label[for='{input_id}']")
+                    print(f"Found label with for='{input_id}', clicking it")
+                    label.click()
+                    return True
+                except NoSuchElementException:
+                    pass
+
+            input_name = element.get_attribute('name')
+            if input_name:
+                try:
+                    label = driver.find_element(By.CSS_SELECTOR, f"label[for='{input_name}']")
+                    print(f"Found label with for='{input_name}', clicking it")
+                    label.click()
+                    return True
+                except NoSuchElementException:
+                    pass
+
+        try:
+            print(f"Trying JavaScript click on {tag_name} element")
+            driver.execute_script("arguments[0].click();", element)
+            return True
+        except Exception as js_error:
+            print(f"JavaScript click failed: {js_error}")
 
         parent_elements = driver.execute_script("""
             var element = arguments[0];
@@ -288,28 +268,42 @@ def try_click_label_for_input(driver, input_element):
                 if (parents.length > 5) break; // Limit search depth
             }
             return parents;
-        """, input_element)
+        """, element)
 
+        clickable_tags = ['label', 'button', 'a', 'div']
         for parent in parent_elements:
-            if driver.execute_script("return arguments[0].tagName.toLowerCase() === 'label'", parent):
-                print("Input is inside a label element, clicking the label")
+            parent_tag = driver.execute_script("return arguments[0].tagName.toLowerCase();", parent)
+            if parent_tag in clickable_tags:
+                print(f"Element is inside a {parent_tag} element, clicking the parent")
                 driver.execute_script("arguments[0].click();", parent)
                 return True
 
-        input_rect = input_element.rect
-        labels = driver.find_elements(By.TAG_NAME, "label")
+        element_rect = element.rect
+        potential_clickables = []
 
-        for label in labels:
-            label_rect = label.rect
-            if (abs(label_rect['x'] - input_rect['x']) < 50 and
-                    abs(label_rect['y'] - input_rect['y']) < 50):
-                print("Found label near input element, clicking it")
-                label.click()
+        for tag in clickable_tags:
+            potential_clickables.extend(driver.find_elements(By.TAG_NAME, tag))
+
+        for potential in potential_clickables:
+            potential_rect = potential.rect
+            if (abs(potential_rect['x'] - element_rect['x']) < 50 and
+                    abs(potential_rect['y'] - element_rect['y']) < 50):
+                print(f"Found {potential.tag_name} element near target, clicking it")
+                potential.click()
                 return True
 
-        print("Could not find any associated label for the input element")
+        try:
+            print("Scrolling element into view")
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(0.5)
+            element.click()
+            return True
+        except Exception as scroll_error:
+            print(f"Scroll and click failed: {scroll_error}")
+
+        print(f"Could not resolve click intercept for {tag_name} element")
         return False
 
     except Exception as e:
-        print(f"Error while trying to click label: {e}")
+        print(f"Error while trying to resolve click intercept: {e}")
         return False

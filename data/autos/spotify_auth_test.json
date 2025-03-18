@@ -13,7 +13,7 @@
         "action": "click",
         "locator": {
           "type": "xpath",
-          "value": "//a[@href='/us/signup']"
+          "value": "//a[@href='/us/signup?forward_url=https%3A%2F%2Fopen.spotify.com%2F']"
         }
       },
       {
@@ -29,7 +29,7 @@
           "type": "xpath",
           "value": "//input[@name='username']"
         },
-        "input_value": "mockemail123@outlook.com"
+        "input_value": "mockemail456@outlook.com"
       },
       {
         "action": "click",
@@ -44,7 +44,7 @@
           "type": "xpath",
           "value": "//input[@name='password']"
         },
-        "input_value": "P@$$wOrd123!@#"
+        "input_value": "LongPassw@rd123"
       },
       {
         "action": "click",
@@ -89,8 +89,9 @@
         "action": "click",
         "locator": {
           "type": "xpath",
-          "value": "//label[text()='Male']"
-        }
+          "value": "//label[@for='gender_male']"
+        },
+        "input_value": ""
       },
       {
         "action": "click",
@@ -122,7 +123,7 @@
         "action": "click",
         "locator": {
           "type": "xpath",
-          "value": "//a[@href='/us/login']"
+          "value": "//a[@href='https://accounts.spotify.com/en/login?continue=https%3A%2F%2Fopen.spotify.com%2F']"
         }
       },
       {

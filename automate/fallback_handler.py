@@ -25,11 +25,6 @@ class FallbackHandler:
             locator = {"type": locator_type, "value": locator_value}
 
             if current_action == "click":
-                if locator_type == "xpath" and "//a" in locator_value:
-                    href_value = self._extract_attribute_value(locator_value, "href")
-                    if href_value:
-                        return self._handle_link_fallback(locator, href_value)
-
                 return self._handle_click_fallback(locator)
 
             elif current_action == "input":
@@ -57,16 +52,51 @@ class FallbackHandler:
             return cached_element
 
         fallback_strategies = []
+        html_tagname = self._extract_tag_name(locator_value)
+
+        self._add_contains_strategy(fallback_strategies, locator_value)
+
+        if "//label" in locator_value:
+            self._check_separate_words(locator_type, locator_value, fallback_strategies)
+
+        if "text()" in locator_value:
+            text = self._extract_text_value(locator_value)
+
+            if "//label" in locator_value:
+                if text:
+                    sanitized_text = self._sanitize_xpath_value(text)
+                    fallback_strategies.append((By.XPATH, f"//input[@value={sanitized_text}]"))
+                    fallback_strategies.append((By.XPATH, f"//input[contains(@value, {sanitized_text})]"))
+
+            if text:
+                case_variations = self._generate_case_variations(text)
+                if html_tagname == "button":
+                    for variation in case_variations:
+                        fallback_strategies.append((By.XPATH, f"//{html_tagname}/span[text()='{variation}']"))
+                        fallback_strategies.append((By.XPATH, f"//{html_tagname}/span[contains(text(), '{variation}')]"))
+                elif html_tagname == "div":
+                    self._check_separate_words(locator_type, f"//p/span[contains(text(), '{text}')]", fallback_strategies)
+                    self._check_separate_words(locator_type, f"//{html_tagname}/span[contains(text(), '{text}')]", fallback_strategies)
+                else:
+                    for variation in case_variations:
+                        fallback_strategies.append((By.XPATH, f"//{html_tagname}[text()='{variation}']"))
+                        fallback_strategies.append((By.XPATH, f"//{html_tagname}[contains(text(), '{variation}')]"))
+
+            fallback_strategies.append((By.XPATH, locator_value.replace("//button", "//button/span")))
+            fallback_strategies.append((By.XPATH, locator_value.replace("//button", "//button/a")))
+            fallback_strategies.append((By.XPATH, locator_value.replace("//a", "//button/span")))
+            fallback_strategies.append((By.XPATH, locator_value.replace("//a", "//button/a")))
+
+        if locator_type in ["id", "name"] or "@name" in locator_value or "@id" in locator_value:
+            fallback_strategies += self._check_id_name(locator_type, locator_value, "*", "")
+
+        if not "//label" in locator_value:
+            self._check_separate_words(locator_type, locator_value, fallback_strategies)
 
         if locator_type == "xpath" and "//button" in locator_value:
-            self._add_contains_strategy(fallback_strategies, locator_value)
-
             fallback_strategies.append((By.XPATH, locator_value.replace("//button", "//a")))
             fallback_strategies.append((By.XPATH, locator_value.replace("//button", "//div[contains(@class, 'btn')]")))
             fallback_strategies.append((By.XPATH, locator_value.replace("//button", "//span[contains(@class, 'btn')]")))
-
-        elif locator_type in ["id", "name"]:
-            self._check_id_name(locator_type, locator_value, "*", "", fallback_strategies)
 
         element = self._try_clickable_locators(fallback_strategies)
 
@@ -78,7 +108,6 @@ class FallbackHandler:
         locator_type = locator.get("type")
         locator_value = locator.get("value")
 
-        # Check cache first
         cache_key = f"input_{locator_type}_{locator_value}"
         cached_element = self._try_cached_strategy(cache_key, EC.presence_of_element_located)
         if cached_element:
@@ -89,8 +118,8 @@ class FallbackHandler:
         if locator_type == "xpath" and "//input" in locator_value:
             self._add_contains_strategy(fallback_strategies, locator_value)
 
-        if locator_type in ["id", "name"]:
-            self._check_id_name(locator_type, locator_value, "input", "textarea", fallback_strategies)
+        if locator_type in ["id", "name"] or "name" in locator_value or "id" in locator_value:
+            fallback_strategies += self._check_id_name(locator_type, locator_value, "input", "textarea")
 
         fallback_strategies.append((By.XPATH, locator_value.replace("//input", "//textarea")))
         self._add_attribute_strategies(fallback_strategies, locator_value, "//input", ["id", "name", "placeholder"])
@@ -101,11 +130,9 @@ class FallbackHandler:
         return element
 
     def _handle_select_fallback(self, locator, input_value):
-        """Handle fallback strategies for select actions"""
         locator_type = locator.get("type")
         locator_value = locator.get("value")
 
-        # Check cache first
         cache_key = f"select_{locator_type}_{locator_value}"
         cached_element = self._try_cached_strategy(cache_key, EC.presence_of_element_located)
         if cached_element:
@@ -123,7 +150,7 @@ class FallbackHandler:
                                         f"//input[@type='radio' and @{locator_type}='{locator_value}' and @value={sanitized_input}]"))
 
         elif locator_type in ["id", "name"]:
-            self._check_id_name(locator_type, locator_value, "select", "option", fallback_strategies)
+            fallback_strategies += self._check_id_name(locator_type, locator_value, "select", "option")
 
         self._add_attribute_strategies(fallback_strategies, locator_value, "//select", ["id", "name", "class"])
         element = self._try_locators(fallback_strategies)
@@ -133,11 +160,9 @@ class FallbackHandler:
         return element
 
     def _handle_wait_visible_fallback(self, locator):
-        """Handle fallback strategies for waitForElementVisible actions"""
         locator_type = locator.get("type")
         locator_value = locator.get("value")
 
-        # Check cache first
         cache_key = f"wait_{locator_type}_{locator_value}"
         cached_element = self._try_cached_strategy(cache_key, EC.visibility_of_element_located)
         if cached_element:
@@ -146,10 +171,8 @@ class FallbackHandler:
         fallback_strategies = []
 
         if locator_type == "xpath":
-            # Try contains instead of exact match
             self._add_contains_strategy(fallback_strategies, locator_value)
 
-            # Try alternative elements
             if "//button" in locator_value:
                 fallback_strategies.append((By.XPATH, locator_value.replace("//button", "//a")))
                 fallback_strategies.append((By.XPATH, locator_value.replace("//button", "//*")))
@@ -157,7 +180,6 @@ class FallbackHandler:
                 fallback_strategies.append((By.XPATH, locator_value.replace("//a", "//button")))
                 fallback_strategies.append((By.XPATH, locator_value.replace("//a", "//*")))
 
-            # Extract text if present
             text_value = self._extract_text_value(locator_value)
             if text_value:
                 sanitized_text = self._sanitize_xpath_value(text_value)
@@ -170,7 +192,6 @@ class FallbackHandler:
                 )
                 print(f"Found visible element with fallback locator: {locator}")
 
-                # Cache successful strategy
                 self.strategy_cache[cache_key] = (by_type, locator)
 
                 return element
@@ -181,30 +202,24 @@ class FallbackHandler:
         return None
 
     def _handle_link_fallback(self, locator, url):
-        """Handle fallback strategies for links, potentially returning URLs to navigate to"""
         print(f"Link element not found. Attempting to navigate directly to: {url}")
 
-        # Check cache first
         cache_key = f"link_{locator.get('type')}_{locator.get('value')}"
         cached_element = self._try_cached_strategy(cache_key, EC.element_to_be_clickable)
         if cached_element:
             return cached_element
 
-        # Try to find the link with alternative strategies
         contains_strategies = []
 
-        # Try with contains for href
         sanitized_url = self._sanitize_xpath_value(url)
         contains_strategies.append((By.XPATH, f"//a[contains(@href, {sanitized_url})]"))
 
-        # If URL has path components, try with just the last part
         if "/" in url:
             path_part = url.split("/")[-1]
             if path_part:
                 sanitized_path = self._sanitize_xpath_value(path_part)
                 contains_strategies.append((By.XPATH, f"//a[contains(@href, {sanitized_path})]"))
 
-        # Extract text if present in the original locator
         locator_value = locator.get("value")
         text_value = self._extract_text_value(locator_value)
         if text_value:
@@ -213,13 +228,11 @@ class FallbackHandler:
 
         element = self._try_clickable_locators(contains_strategies)
 
-        # Cache successful strategy
         self._cache_successful_strategy(element, contains_strategies, cache_key)
 
         if element:
             return element
 
-        # If we couldn't find the link, prepare URLs to try direct navigation
         domain, main_domain = self._get_domain_info()
         urls_to_try = []
 
@@ -241,7 +254,6 @@ class FallbackHandler:
         if not urls_to_try:
             urls_to_try.append(url)
 
-        # Return the list of URLs to try
         return {"urls_to_try": urls_to_try}
 
     def _try_cached_strategy(self, cache_key, condition_func):
@@ -313,6 +325,159 @@ class FallbackHandler:
                     strategies.append(
                         (By.XPATH, f"//input[@type='radio' and @name='{attr_value}' and @value={sanitized_input}]"))
 
+    def _check_id_name(self, locator_type, locator_value, tag, reserve_tag):
+        other_type = "name" if locator_type == "id" or "id" in locator_value else "id"
+        current_type = locator_type if locator_type != "xpath" else "name"
+        if current_type != locator_type and "id" in locator_value:
+            current_type = "id"
+
+        value = self._extract_attribute_value(locator_value, current_type)
+        fallback_strategies = [(By.XPATH, f"//{tag}[@{other_type}='{value}']"),
+                               (By.XPATH, f"//{tag}[contains(@{other_type}, '{value}')]")]
+
+        self._add_case_variation_strategies(fallback_strategies, current_type, locator_value, other_type, tag)
+
+        if len(reserve_tag) > 0:
+            fallback_strategies.append((By.XPATH, f"//{reserve_tag}[@{current_type}='{value}']"))
+            fallback_strategies.append((By.XPATH, f"//{reserve_tag}[contains(@{current_type}, '{value}')]"))
+
+        return fallback_strategies
+
+    def _check_separate_words(self, locator_type, locator_value, strategies):
+        if locator_type != "xpath":
+            return
+
+        span_text_match = re.search(r'//([a-zA-Z0-9_-]+)/span\[contains\(text\(\),\s*[\'\"]([^\'\"]+)[\'\"]\)\]',
+                                    locator_value)
+        if span_text_match:
+            html_tag = span_text_match.group(1)
+            text_value = span_text_match.group(2)
+            self._process_text_value(html_tag, text_value, strategies, is_child_span=True)
+
+        direct_text_match = re.search(r'//([a-zA-Z0-9_-]+)\[contains\(text\(\),\s*[\'\"]([^\'\"]+)[\'\"]\)\]',
+                                      locator_value)
+        if direct_text_match:
+            html_tag = direct_text_match.group(1)
+            text_value = direct_text_match.group(2)
+            self._process_text_value(html_tag, text_value, strategies)
+
+        tag_match = re.match(r'//([a-zA-Z0-9_-]+)', locator_value)
+        if not tag_match:
+            return
+
+        html_tag = tag_match.group(1)
+        attributes = self._extract_attributes_from_xpath(locator_value)
+
+        if 'text()' in attributes:
+            text_value = attributes['text()']
+            self._process_text_value(html_tag, text_value, strategies)
+
+        for attr_name, attr_value in attributes.items():
+            if not attr_value or not isinstance(attr_value, str):
+                continue
+
+            words = self._extract_words_from_value(attr_value)
+
+            if len(words) > 1:
+                print(f"Found separate words in attribute {attr_name}: {words}")
+                self._add_attribute_strategies(html_tag, attr_name, words, strategies)
+
+                for word in words:
+                    if len(word) > 2:
+                        self._add_attribute_strategies(html_tag, attr_name, [word], strategies)
+
+    def _process_text_value(self, html_tag, text_value, strategies, is_child_span=False):
+        if not text_value or not isinstance(text_value, str):
+            return
+
+        if ' ' in text_value and len(text_value.split()) > 1:
+            words = [w for w in text_value.split() if len(w) > 1]
+            if len(words) > 1:
+                print(f"Found space-separated words in text(): {words}")
+                self._add_text_content_strategies(html_tag, words, strategies, is_child_span=is_child_span)
+
+                for word in words:
+                    if len(word) > 2:
+                        self._add_text_content_strategies(html_tag, [word], strategies, is_child_span=is_child_span)
+
+    def _extract_words_from_value(self, attr_value):
+        words = []
+
+        if ' ' in attr_value:
+            words.extend([w for w in attr_value.split() if len(w) > 1])
+
+        if '_' in attr_value:
+            words.extend([w for w in attr_value.split('_') if len(w) > 1])
+
+        if '-' in attr_value:
+            words.extend([w for w in attr_value.split('-') if len(w) > 1])
+
+        if any(c.isupper() for c in attr_value) and not attr_value.isupper():
+            first_part = re.findall(r'^[a-z]+', attr_value)
+            if first_part and len(first_part[0]) > 1:
+                words.append(first_part[0])
+
+            camel_parts = re.findall(r'[A-Z][a-z]*', attr_value)
+            words.extend([w.lower() for w in camel_parts if len(w) > 1])
+
+        return list(set(words))
+
+    def _add_text_content_strategies(self, html_tag, words, strategies, is_child_span=False):
+        contains_conditions = []
+        for word in words:
+            if len(word) > 1:
+                sanitized_word = self._sanitize_xpath_value(word.lower())
+                contains_conditions.append(
+                    f"contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), {sanitized_word})")
+
+        if contains_conditions:
+            if is_child_span:
+                all_words_xpath = f"//{html_tag}/span[{' and '.join(contains_conditions)}]"
+                strategies.append((By.XPATH, all_words_xpath))
+
+                parent_text_xpath = f"//{html_tag}[{' and '.join(contains_conditions)}]"
+                strategies.append((By.XPATH, parent_text_xpath))
+            else:
+                all_words_xpath = f"//{html_tag}[{' and '.join(contains_conditions)}]"
+                strategies.append((By.XPATH, all_words_xpath))
+
+                self._add_related_tag_strategies(html_tag, contains_conditions, strategies)
+
+            any_tag_xpath = f"//*[{' and '.join(contains_conditions)}]"
+            strategies.append((By.XPATH, any_tag_xpath))
+
+    def _add_attribute_strategies(self, html_tag, attr_name, words, strategies):
+        contains_conditions = []
+        for word in words:
+            if len(word) > 1:
+                sanitized_word = self._sanitize_xpath_value(word.lower())
+                contains_conditions.append(
+                    f"contains(translate(@{attr_name}, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), {sanitized_word})")
+
+        if contains_conditions:
+            all_words_xpath = f"//{html_tag}[{' and '.join(contains_conditions)}]"
+            strategies.append((By.XPATH, all_words_xpath))
+
+            self._add_related_tag_strategies(html_tag, contains_conditions, strategies)
+
+            any_tag_xpath = f"//*[{' and '.join(contains_conditions)}]"
+            strategies.append((By.XPATH, any_tag_xpath))
+
+    def _add_related_tag_strategies(self, html_tag, conditions, strategies):
+        related_tags = {
+            'button': ['a', 'div', 'span', 'input'],
+            'a': ['button', 'div', 'span'],
+            'input': ['textarea', 'select', 'div'],
+            'select': ['div', 'input', 'ul'],
+            'label': ['div', 'span', 'p'],
+            'div': ['span', 'button', 'a']
+        }
+
+        for related_tag in related_tags.get(html_tag, []):
+            related_tag_xpath = f"//{related_tag}[{' and '.join(conditions)}]"
+            strategies.append((By.XPATH, related_tag_xpath))
+
+
     def _cache_successful_strategy(self, element, strategies, cache_key):
         if element and strategies:
             for i, (by_type, locator_value) in enumerate(strategies):
@@ -359,16 +524,88 @@ class FallbackHandler:
         else:
             return f"'{value}'"
 
+    def _generate_case_variations(self, text):
+        case_variations = [text]
+
+        words = text.split()
+        if len(words) > 1:
+            case_variations.append(text.lower())
+
+            first_cap_rest_lower = words[0].capitalize() + ' ' + ' '.join(w.lower() for w in words[1:])
+            if first_cap_rest_lower != text:
+                case_variations.append(first_cap_rest_lower)
+
+            if len(words) >= 2:
+                first_lower_second_cap = words[0].lower() + ' ' + ' '.join(
+                    [words[1].capitalize()] + [w.lower() for w in words[2:]]
+                )
+                if first_lower_second_cap != text:
+                    case_variations.append(first_lower_second_cap)
+        else:
+            if text.lower() != text:
+                case_variations.append(text.lower())
+
+        case_variations = list(dict.fromkeys(case_variations))
+        return case_variations
+
+    def _extract_tag_name(self, xpath):
+        pattern = r'\/([a-zA-Z0-9_-]+)(?:\[|\/?$|$)'
+        matches = re.findall(pattern, xpath)
+
+        if matches:
+            return matches[-1]
+
+        return None
+
+    def _extract_attributes_from_xpath(self, xpath_expression):
+        attributes = {}
+
+        attr_pattern = r'\[@([^=]+)=[\'\"]([^\'\"]+)[\'\"]\]'
+        matches = re.findall(attr_pattern, xpath_expression)
+        for attr_name, attr_value in matches:
+            attributes[attr_name] = attr_value
+
+        contains_pattern = r'contains\(@([^,]+),\s*[\'\"]([^\'\"]+)[\'\"]\)'
+        matches = re.findall(contains_pattern, xpath_expression)
+        for attr_name, attr_value in matches:
+            attributes[attr_name] = attr_value
+
+        starts_with_pattern = r'starts-with\(@([^,]+),\s*[\'\"]([^\'\"]+)[\'\"]\)'
+        matches = re.findall(starts_with_pattern, xpath_expression)
+        for attr_name, attr_value in matches:
+            attributes[attr_name] = attr_value
+
+        ends_with_pattern = r'ends-with\(@([^,]+),\s*[\'\"]([^\'\"]+)[\'\"]\)'
+        matches = re.findall(ends_with_pattern, xpath_expression)
+        for attr_name, attr_value in matches:
+            attributes[attr_name] = attr_value
+
+        simple_attr_pattern = r'\[([a-zA-Z0-9_-]+)=[\'\"]([^\'\"]+)[\'\"]\]'
+        matches = re.findall(simple_attr_pattern, xpath_expression)
+        for attr_name, attr_value in matches:
+            if attr_name not in ['contains', 'starts-with', 'ends-with', 'text()']:
+                attributes[attr_name] = attr_value
+
+        return attributes
+
     def _extract_attribute_value(self, locator_value, attribute):
         if f"@{attribute}=" in locator_value:
             value = locator_value.split(f"@{attribute}=")[1].split("]")[0].strip("'\"")
             return value
-        return None
+
+        attributes = self._extract_attributes_from_xpath(locator_value)
+        return attributes.get(attribute)
 
     def _extract_text_value(self, locator_value):
         if "text()=" in locator_value:
             value = locator_value.split("text()=")[1].strip("'\"[]")
             return value
+        elif "contains(text()," in locator_value:
+            start_index = locator_value.find("contains(text(),") + len("contains(text(),")
+            end_index = locator_value.find(")", start_index)
+            if 0 < start_index < end_index:
+                value = locator_value[start_index:end_index].strip().strip("'\"")
+                return value
         return None
 
     def _get_domain_info(self):
@@ -415,18 +652,6 @@ class FallbackHandler:
             variations.add(snake_case)
 
         return list(variations)
-
-    def _check_id_name(self, locator_type, locator_value, tag, reserve_tag, fallback_strategies):
-        other_type = "name" if locator_type == "id" else "id"
-        fallback_strategies.append((By.XPATH, f"//{tag}[@{other_type}='{locator_value}']"))
-        fallback_strategies.append((By.XPATH, f"//{tag}[contains(@{other_type}, '{locator_value}')]"))
-
-        self._add_case_variation_strategies(fallback_strategies, locator_type, locator_value, other_type,
-                                            element_type={tag})
-
-        if len(reserve_tag) > 0:
-            fallback_strategies.append((By.XPATH, f"//{reserve_tag}[@{locator_type}='{locator_value}']"))
-            fallback_strategies.append((By.XPATH, f"//{reserve_tag}[contains(@{locator_type}, '{locator_value}')]"))
 
     def _split_identifier(self, identifier):
         """Split an identifier into parts based on common separators"""

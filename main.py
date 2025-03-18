@@ -83,13 +83,14 @@ def process_with_multiple_attachments(md_file_path, html_file_paths,
         Any password you generate should be longer than 12 characters.
 
         While identifying elements keep in mind that:
+        Word 'title' always refers to <h> tag
         Words 'enter' or 'input' more likely refers to <input/> tag
         Words 'select' or 'pick' more likely refers to <input type='select/radio' /> tag or <select/> dropdown
         Phrase 'check ... field' more likely refers to <input type='radio/checkbox' /> tag
 
         Make difference between <button/> that redirects to another page and <a/> tag.
         Make difference between @name='displayname' and @name='displayName'.
-        Never identify: <input/> with @placeholder, any element with 'data-encore-id'.
+        Never identify: <input/> with @placeholder, <div> with @class, any element with 'data-encore-id'.
         Always identify: <a/> with @href, <button/> with @data-testid or @text.
         
         Do not stop generating steps even if you not certain in your answer

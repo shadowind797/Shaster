@@ -19,13 +19,21 @@ def extract_urls_from_markdown(file_path: str) -> List[str]:
 
     return urls
 
+
 def get_urls(test_case_file):
     try:
         urls = extract_urls_from_markdown(test_case_file)
-        print(f"Found {len(urls)} URLs in {test_case_file}:")
+        unique_urls = []
+        seen = set()
+
         for url in urls:
+            if url not in seen:
+                seen.add(url)
+                unique_urls.append(url)
+
+        print(f"Found {len(unique_urls)} URLs in {test_case_file}:")
+        for url in unique_urls:
             print(f"- {url}")
-        return urls
+        return unique_urls
     except (FileNotFoundError, ValueError) as e:
         print(f"Error: {e}")
-

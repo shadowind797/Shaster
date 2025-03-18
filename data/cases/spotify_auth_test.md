@@ -1,4 +1,4 @@
-# Spotify authentication test 
+# Spotify authentication test
 
 ## Case 1
 ### Steps:
@@ -21,7 +21,7 @@
 - Go to https://open.spotify.com/
 - Click "Log in" button
 - Wait for redirect to https://accounts.spotify.com/en/login?continue=https%3A%2F%2Fopen.spotify.com%2F
-- Enter "mr.lynx2009@gmail.com" into Email or username field
-- Enter "AgentSpot007" into Password field
+- Enter "shaster797@gmail.com" into Email or username field
+- Enter "AgentShaster007" into Password field
 - Click "Log In" button
 - Wait for redirect to https://open.spotify.com
